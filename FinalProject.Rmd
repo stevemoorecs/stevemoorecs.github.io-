@@ -1,0 +1,185 @@
+Understanding Machine Learning with the Iris Dataset
+
+Table of Contents???
+# Introduction
+# Setup
+# Data Curation, Parsing, and Management
+# Exploratory Data Analysis
+TODO
+# Hypothesis Testing & Machine Learning for Analysis
+TODO
+# Insights
+TODO???
+
+Here's the iris csv
+
+From now on I'll just post Rmarkdown contents directly. Ctrl+c Ctrl+v everything and you have yourself an rmarkdown document.
+
+---
+title: "Understanding Machine Learning with the Iris Dataset"
+output: html_document
+---
+### Maya Fuchs, Steve Moore & Shiyu Hao
+#### CMSC320 Spring 2019
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Introduction
+
+  The Iris Flower Dataset is a classic when it comes to learning data science. There are plenty of tutorials for statistical analysis and machine learning using the dataset, but it's not always easy to understand why all the steps are required, and it can be harder to understand how to apply them to new contexts. 
+
+  In this tutorial, we'll take you through data processing, analysis, hypothesis testing and machine learning with the iris dataset. The goal here is to build up a strong intuition for the various steps in the process, so it will be easier to translate to harder problems. After all, most datasets we end up using won't be as simple and straightforward as this one.
+
+# Setup
+
+Here are the libraries we'll need. Be sure to install any that you don't already have!
+
+``` {r libraries, message=FALSE, warning=FALSE}
+library(neuralnet)
+library(readr)
+library(rvest)
+library(ggplot2)
+library(nnet)
+library(dplyr)
+library(reshape2)
+```
+# Data Curation, Parsing, and Management
+
+The Iris dataset is already built into R, so to load it we simply call:
+
+``` {r iris}
+data("iris")
+```
+Not every dataset is that simple, so let's try another method: loading CSV files.
+
+We've included the iris csv file in our git repository. You can view the raw data in your browser, right click and select "save as," name it and save it as a csv in a local directory.
+
+``` {r csv}
+# All you really need for a simple dataset like this:
+# iris_csv <- read_csv("iris.csv")
+
+# But if the column types are less obvious, explicitly assign column types
+iris_csv <- read_csv("iris.csv",
+                     col_types = cols(sepal_length = col_double(),
+                                      sepal_width = col_double(),
+                                      petal_length = col_double(),
+                                      petal_width = col_double(),
+                                      species = col_character()))
+
+# Print part of the data to make sure the types are correct and everything looks good.
+head(iris_csv)
+```
+
+That's my favorite method, since it tends to be fairly simple. You can specify column types in the call to read_csv or after the fact, rename columns, etc. It's also very easy to clean the data in excel or google sheets before loading it, then a single call like the one above gives you a dataset that's ready to go.
+
+
+# Exploratory Data Analysis
+TODO [talk about eda stuff here]
+TODO [Other visualization examples]
+
+The best way to approach visualization is to look at the dataset, see which variables are interesting, then google examples of plots for inspiration. To apply them to a new dataset, start simple and add details one at a time, adjusting as you go along. Here we'll go over a few creative approaches to visualizing the classic iris dataset.
+
+Here's an example of a fancy boxplot I found here: https://www.r-exercises.com/2017/11/17/iris-neural-network-solutions/
+
+``` {r eda}
+exploratory_iris <- melt(iris)
+exploratory_iris %>%
+  ggplot(aes(x = factor(variable), y = value)) +
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.1, aes(colour = Species), alpha = 0.7) +
+  theme_minimal()
+```
+
+This graph lets us see the distributions of widths/heights across each of the 3 species. We can see a bit of distinction in terms of petal length and width - the setosas have much smaller petals; the other two are more similar, but the virginicas are somewhat bigger than the versicolors. 
+
+TODO [more analysis of plots]
+
+What about relationships between variables? This page: http://www.sthda.com/english/wiki/scatter-plot-matrices-r-base-graphs has a series of plots ranging from simple:
+
+```{r facetgrid}
+pairs(iris[,1:4], pch = 19)
+```
+
+... to detailed and colorful:
+
+``` {r colorfulgrid}
+my_cols <- c("#00AFBB", "#E7B800", "#FC4E07")  
+pairs(iris[,1:4], pch = 19,  cex = 0.5,
+      col = my_cols[iris$Species],
+      lower.panel=NULL)
+
+# Correlation panel
+panel.cor <- function(x, y){
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- round(cor(x, y), digits=2)
+    txt <- paste0("R = ", r)
+    cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+# Customize upper panel
+upper.panel<-function(x, y){
+  points(x,y, pch = 19, col = my_cols[iris$Species])
+}
+# Create the plots
+pairs(iris[,1:4], 
+      lower.panel = panel.cor,
+      upper.panel = upper.panel)
+```
+
+... to elaborate:
+
+``` {r fancygrid}
+library(psych)
+pairs.panels(iris[,-5], 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+```
+
+The last plot shows bivariate scatter plots with regression lines and correlation ellipses on the bottom left, histograms on the diagonal, and pearson correlation on the top right. The color-coded plot above it shows the distributions for each class better, but the last plot does a better job of concretely displaying variable relationships and overall distributions. It might be best to start with simpler plots, but this elaborate version makes the relationship characteristics very clear.
+
+There seems to be a strong linear relationship between petal length and width, but the other variables are not linearly related. Sepal length does seem to have a pretty strong correlation with petal length and width, however.
+
+The individual distributions of petal length and width seem to be bimodal - there are two main clusters, with about 2/3 of the data in one, and 1/3 in the other. We can confirm this in the violin plot above, and can see that the clusters correspond to the species: versicolor and virginica are one group, and setosa is the other.
+
+This dataset is a perfect classification problem, given the three species and simple set of characteristics to distinguish them. The question is, which model do we use to predict the species of a given flower? 
+
+Since one pair of variables has a clear linear relationship, we could try to fit a linear model to the data.
+We could probably separate setosa from the other two species easily enough, but we might not be able to separate versicolor and virginica as easily.
+
+We could use logistic regression to predict the probabilities of a given flower belonging to each class. 
+TODO [elaborate - logistic regression]
+
+We could use K-nearest neighbors to group the flowers based on similarities. 
+TODO [elaborate - KNN]
+
+We could use a decision tree, where we'd determine certain thresholds for characteristics. For example, from the violin plot we can see that setosa flowers don't have petal widths > 1. We could let the machine try to find enough clear distinctions to accurately separate the data. 
+
+Decision trees tend to have a problem with overfitting, so their results are often difficult to generalize to new data. They can also require very large datasets to achieve some degree of reliability. These may or may not be issues with this dataset, but they certainly could hinder results for more complicated ones. A popular solution is the random forest model, which creates multiple decision trees, each of which select random features to focus on. Then, the results from the trees are basically averaged to make a final decision.
+
+TODO [more details and/or other models]
+
+
+
+
+# Hypothesis Testing & Machine Learning for Analysis
+TODO
+[what are the hypotheses?]
+[logistic regression (classification)]
+[KNN]
+[Decision tree]
+[Random Forest]
+[Model comparison]
+# Insights
+TODO
+
+
+# Resources
+https://www.r-exercises.com/2017/11/17/iris-neural-network-exercises/ 
+http://www.hcbravo.org/IntroDataSci/bookdown-notes/index.html 
+http://www.sthda.com/english/wiki/scatter-plot-matrices-r-base-graphs
+
