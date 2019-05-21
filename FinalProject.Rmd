@@ -152,10 +152,87 @@ Since one pair of variables has a clear linear relationship, we could try to fit
 We could probably separate setosa from the other two species easily enough, but we might not be able to separate versicolor and virginica as easily.
 
 We could use logistic regression to predict the probabilities of a given flower belonging to each class. 
-TODO [elaborate - logistic regression]
+
+Logistic regression to predict species:
+
+Suppose we are given an unknown species of plant. We know that its species could either be virginica or versicolor based on its measurements. We can fit a logistic regression over our data to estimate the probability of our unknown's species being virginica or versicolor. 
+
+
+``` {r logisticRegressionModel}
+
+iris_no_setosa <- filter(iris, Species %in% c("virginica", "versicolor"))
+glm_model <- glm(Species ~ Sepal.Width + Sepal.Length + Petal.Width + Petal.Length,
+               data = iris_no_setosa,
+               family = binomial) # family = binomial required for logistic regression
+summary(glm_model)
+
+model_data <- data.frame(predictor=glm_model$linear.predictors, prob=glm_model$fitted.values, Species=iris_no_setosa$Species)
+ggplot(model_data, aes(x=predictor, y=prob, color=Species)) + geom_point()
+```
+
+Above we have fitted a linear regression model to determine the probability of an unknown plant being a versicolor or a virginica. To make a prediction of what a unknown plant is, we will plug in the predictor attributes into our logistic model and then get the probability or our unknown being a versicolor.
+
+
+``` {r logisticRegressionPrediction}
+unknown_plant <- data.frame(Sepal.Length=5.4, Sepal.Width=2.4, Petal.Length=4.1, Petal.Width=1.9)
+predict(glm_model, unknown_plant, type="response")
+```
+
+Here we have created an unknown plant so we can get an idea of its species by plugging it into our logistic model. We gave our model a plant with 
+
+Sepal length = 5.4 
+Sepal width = 2.4
+Petal length = 4.1
+Petal width = 1.9
+
+and our model states this unknown plant has a 0.8053412% chance of being of the versicolor species.
+
 
 We could use K-nearest neighbors to group the flowers based on similarities. 
-TODO [elaborate - KNN]
+KNN algorithm making estimations and predictions
+A common situation in data analysis is that one has an outcome attribute, and one or more independent covariate or predictor attributes. We can ask ourselves some questions about these attributes. What effects do the covariates have on the outcome? How well can we describe these effects? Can we predict the outcome using the covariates?
+
+We can do some data analysis with geometry to help give us some answers.
+
+Here, We can select species as our outcome attribute, petal length, petal width, and sepal width as our predictor attributes. We suspect there might be a linear relationship between the attributes. Suppose we want to predict what a species will be given certain petal length and width? we can use the K-nearest-neighbor classification to give us an estimate. Given petal length,and  petal and sepal widths, we could estimate what species group the new plant falls into.
+
+The k nearest neighbors is a algorithm that looks at all available normalized data and classifies new data by looking at its k neighbors. This algorithms segregates unlabeled data points into well defined groups.
+
+What value should we select for k? A large k value is good because it will not be affected by data noise as much, but it might overlook the less noticeable patterns in the data.
+
+``` {r KNN}
+ library(class)
+ iris_data <- iris %>% select(Petal.Length,Petal.Width, Sepal.Width, Species)
+
+ ##the normalization function is created
+ nor <-function(x) { (x -min(x))/(max(x)-min(x))   }
+ 
+ ##Run normalization on first 3 columns of dataset because they are the predictors
+ iris_norm <- as.data.frame(lapply(iris_data[,c(1,2,3)], nor))
+ 
+ #Creating hypothetical new data entry by modifying existing one
+ test_data <- iris_norm[3,]
+ test_data[1,1] <-  test_data[1,1] + .2
+ test_data[1,2] <-  test_data[1,2] + .08
+ test_data[1,3] <-  test_data[1,3] + .14
+ test_data <- test_data %>% as_tibble()
+
+ ##run knn function
+ estimate <- knn(iris_norm,test_data,cl=iris_data[,4],k=13)
+ head(iris_data)
+ test_data
+ estimate
+```
+
+
+Here, we have our dataset where we only care about our outcome and predictor attributes. We created a new data entry by modifying an original one. We inputted the new data entry into our knn algorithm to see what our estimate would be. Our test data was 
+
+Petal length = 0.2508475
+Petal width = 0.1216667
+Sepal width = 0.64
+
+and our knn algorithm predicted these attributes correspond to the setosa species. Which lines up with the rest of the observations nicely. This would lead us to believe a plant with these attributes would indeed be part of the Setosa species.
+
 
 We could use a decision tree, where we'd determine certain thresholds for characteristics. For example, from the violin plot we can see that setosa flowers don't have petal widths > 1. We could let the machine try to find enough clear distinctions to accurately separate the data. 
 
@@ -166,14 +243,15 @@ TODO [more details and/or other models]
 
 
 
-# Hypothesis Testing & Machine Learning for Analysis
-TODO
-[what are the hypotheses?]
-[logistic regression (classification)]
-[KNN]
-[Decision tree]
+# Machine Learning for Analysis- 
+
+
+
+
+
+[logistic regression (classification)] - DONE
+[Decision tree] - DONE
 [Random Forest]
-[Model comparison]
 # Insights
 TODO
 
