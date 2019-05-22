@@ -315,10 +315,13 @@ Decision trees tend to have a problem with overfitting, so their results are oft
 
 
 # Insights
+
 The iris dataset is used very frequently in data science, but the motivation for using it in specific ways can be confusing at times. Our goal with this project was to have a variety of approaches in one place, to make it easier to compare and understand the purpose for choosing one method over another for a given problem. It's easier to learn difficult concepts is by starting with the basics, so hopefully we've managed to keep things fairly simple. 
 To me, visualization seemed pretty trivial compared to the massively exciting concept of machine learning. In hindsight, I think it's one of the most useful tools for making sense of things that don't otherwise make sense. The more complicated a dataset or a given question is, the harder it is to see what is going on. The iris dataset is a walk in the park. With a solid grasp on visualizing and organizing data, we can start to navigate what can often be a tangled conceptual, mathematical, or practical mess. These skills are truly invaluable, and are undeniably the foundation for any good data science. Machine learning itself can get a bit harder. Start with regression and work your way up little by little, playing around with the iris dataset as you go. Once the basics are down, all that's left for new problems is trial and error - you can test out different models to see which works for any dataset. 
-
+
+
 # Resources
+
 https://www.r-exercises.com/2017/11/17/iris-neural-network-exercises/ 
 http://www.hcbravo.org/IntroDataSci/bookdown-notes/index.html 
 http://www.sthda.com/english/wiki/scatter-plot-matrices-r-base-graphs
