@@ -73,7 +73,7 @@ If you are looking to scrape your own data from a website, there are a few extra
 
 First, locate a website with desired data. We use https://www.weather.com with its 10 day weather forecast for College Park, MD. If you are unfamiliar with the basics of html, feel free to refer to this page: https://www.w3schools.com/html/html_basic.asp
 
-``` {r weather}
+``` {r scraping}
 # Loads url
 url <- "https://weather.com/weather/tenday/l/20740:4:US"
 # Extract html data. In this case the data is placed inside a table node, which can be identified with the "table" id. Examine the html for the data structure's id if you don't already know it.
@@ -125,7 +125,7 @@ exploratory_iris %>%
 
 This graph lets us see the distributions of widths/heights across each of the 3 species. We can see a bit of distinction in terms of petal length and width - the setosas have much smaller petals; the other two are more similar, but the virginicas are somewhat bigger than the versicolors. 
 
-A graph like this easily allows us to see some immediate features or trends within our data. It gives an overview of what exact aspects of each single variable are worth further analysis. 
+A graph like this easily allows us to see some immediate features or trends within our data. It gives an overview of what exact aspects of each single variable are worth further analysis. At this point, since our data is quite simply distributed with identifiable patterns, we can move on to summary statistics as described later in this section to quantify these observations.
 
 What about relationships between variables? This page: http://www.sthda.com/english/wiki/scatter-plot-matrices-r-base-graphs has a series of plots ranging from simple:
 
@@ -178,6 +178,67 @@ There seems to be a strong linear relationship between petal length and width, b
 
 The individual distributions of petal length and width seem to be bimodal - there are two main clusters, with about 2/3 of the data in one, and 1/3 in the other. We can confirm this in the violin plot above, and can see that the clusters correspond to the species: versicolor and virginica are one group, and setosa is the other.
 
+We have gathered quite an amount of visual clues simply by examining the graphs. As our dataset is fairly straight forward, it would be more or less enough for us to poceed to the next step of our machine learning case study, which is fitting our dataset to a statistical model or machine learning method. In other cases, this might be a good place to turn to summary statistics as another means to continue EDA. 
+
+Summary statistics alludes to the familiar names mean, median, max, etc. They are the set of numbers that summarizes the characteristics of a dataset. Concretely knowing these measurements would allow us to have a firmer grasp on the distribution tendencies of our data. It also provides a foundation for us to transform our data, such as carrying out standardization, if it is needed.
+
+Here is some code that shows how to obtain the five point summary (median, max, min, lower and upper fourth quartiles) for sepal lengths of versicolors.
+
+``` {r statistics}
+# There are individual functions in R that computes many statistical values
+iris_stat <- iris_csv %>% 
+  filter(species=="versicolor") %>%
+  summarize(min = min(sepal_length), 
+            max = max(sepal_length), 
+            median = median(sepal_length), 
+            lower_fourth = quantile(sepal_length, 0.25), 
+            upper_fourth = quantile(sepal_length, 0.75))
+
+# There is also a compact function that carries out all above computations
+summary(filter(iris_csv, species=="versicolor")$sepal_length)
+```
+
+Since our goal today is to carry you through the entire procedure of machine learning based on the iris dataset, we won't dwell into too much details regarding R and statistics. CRAN has a more comprehensive overview revolving around the qwraps2 graphics library for extracting such quantities, as well as building summary tables that will be handy for a statistics-focused analysis here: https://cran.r-project.org/web/packages/qwraps2/vignettes/summary-statistics.html.
+
+We can also combine the values that we have obtained with visualization techniques.
+
+``` {r stat&visual}
+# Piping the dataset into a simple histogram and then graphing lines that indicate the mean, upper and lower quartiles respectively.
+iris_csv %>%
+  filter(species=="versicolor") %>%
+  ggplot(aes(x=sepal_length)) +
+    geom_histogram(bins=20) +
+    geom_vline(aes(xintercept=mean(sepal_length)), size=1.3, color="red") +
+    geom_vline(aes(xintercept=quantile(sepal_length, 0.25)), size=0.8, color="blue", linetype=2) +
+    geom_vline(aes(xintercept=quantile(sepal_length, 0.75)), size=0.8, color="blue", linetype=2)
+```
+
+Each method will prove to be more or less useful according to the dataset that is used. In our case, the necessity for computing and plotting the specific statistic values is low since there is no outstanding need for data transformation or careful evaluation between certain models given the relationship between variables, as we will see later on. Nevertheless, it is helpful to keep in mind that there are many options available when exploring a dataset. The majority of real-world data can be messy, with many complications that can be best dealt with by diverse means.
+
+In many cases, we may wish to standardize our values into a unit-less format that can eliminate certain noises. This would also allow direct  cross-comparison between variables that are measured in different units. 
+
+``` {r standardize}
+# Using the standardization formula to create a new variable of standardized sepal length variable. The result would be a new variable that can be seen as measured in "number of standard deviations away from mean".
+standard_sepal_length <- iris_csv %>%
+  filter(species=="versicolor") %>%
+  mutate(standard_var=(sepal_length-mean(sepal_length))/sd(sepal_length))
+
+standard_sepal_length$standard_var
+```
+
+We might also have to transform the way that our variable exists in the data frame, from numeric to categorical, or the other way around. Since we will be predicting the species of a certain iris given measurement parameters, this also would not be necessary in our case. The motivation for doing so is because most prediction methods, including linear regression which will be used shortly, only take numerical inputs. If we want to use species or other categorical descriptions to predict an output through linear regression, we would have to do something like this...
+
+``` {r type_transform}
+# This method is known as one-hot encoding. If an entity is a certain species the column corresponding to such species will be 1, otherwise it will be 0.
+type_trans <- iris_csv %>%
+  mutate(species_versicolor=ifelse(species=="versicolor", 1, 0), 
+         species_virginica=ifelse(species=="virginica", 1, 0),
+         species_setosa=ifelse(species=="setosa", 1, 0))
+```
+
+For more information regarding transformations, refer to CRAN's documentation:
+https://cran.r-project.org/web/packages/dlookr/vignettes/transformation.html
+
 This dataset is a perfect classification problem, given the three species and simple set of characteristics to distinguish them. The question is, which model do we use to predict the species of a given flower? 
 
 Since one pair of variables has a clear linear relationship, we could try to fit a linear model to the data.
@@ -208,7 +269,7 @@ length_fit <- lm(Petal.Length~Sepal.Length, data=iris) %>% tidy()
 
 length_fit
 ```
-Now we can see that our p-value is basically zero, so there if a very low chance of observing this relationship between petal and sepal length randomly. Thus, we reject the null hypothesis and can indeed say there exists a relationship between petal and sepal length. 
+Now we can see that our p-value is basically zero, so there is a very low chance of observing this relationship between petal and sepal length randomly. Thus, we reject the null hypothesis and can indeed say there exists a relationship between petal and sepal length. 
 
 Below I have included a linear regression line on top of the scatter plot from earlier so the relationship is more clear. 
 
@@ -268,9 +329,9 @@ A common situation in data analysis is that one has an outcome attribute, and on
 
 We can do some data analysis with geometry to help give us some answers.
 
-Suppose we want to predict what a species will be given certain petal length, petal and sepal width. Here, We can select species as our outcome attribute, followed by petal length, petal width, and sepal width as our predictor attributes. We can use the K-nearest-neighbor classification to give us an estimate. Given petal length,and  petal and sepal widths, we could estimate what species group the new plant falls into.
+Suppose we want to predict what a species will be given certain petal length, petal and sepal width. Here, We can select species as our outcome attribute, followed by petal length, petal width, and sepal width as our predictor attributes. We can use the K-nearest-neighbor classification to give us an estimate. Given petal length, and petal and sepal widths, we could estimate what species group the new plant falls into.
 
-The k nearest neighbors is a algorithm that looks at all available normalized data and classifies new data by looking at its k neighbors. This algorithms segregates unlabeled data points into well defined groups.
+The k nearest neighbors is an algorithm that looks at all available normalized data and classifies new data by looking at its k neighbors. This algorithms segregates unlabeled data points into well defined groups.
 
 What value should we select for k? A large k value is good because it will not be affected by data noise as much, but it might overlook the less noticeable patterns in the data.
 
@@ -312,11 +373,10 @@ We could use a decision tree to determine certain thresholds for characteristics
 
 Decision trees tend to have a problem with overfitting, so their results are often difficult to generalize to new data. They can also require very large datasets to achieve some degree of reliability. These may or may not be issues with this dataset, but they certainly could hinder results for more complicated ones. A popular solution is the random forest model, which creates multiple decision trees, each of which select random features to focus on. Then, the results from the trees are basically averaged to make a final decision.
 
-
-
 # Insights
 
-The iris dataset is used very frequently in data science, but the motivation for using it in specific ways can be confusing at times. Our goal with this project was to have a variety of approaches in one place, to make it easier to compare and understand the purpose for choosing one method over another for a given problem. It's easier to learn difficult concepts is by starting with the basics, so hopefully we've managed to keep things fairly simple. 
+The iris dataset is used very frequently in data science, but the motivation for using it in specific ways can be confusing at times. Our goal with this project was to have a variety of approaches in one place, to make it easier to compare and understand the purpose for choosing one method over another for a given problem. It's easier to learn difficult concepts starting with the basics, so hopefully we've managed to keep things fairly simple. 
+
 To me, visualization seemed pretty trivial compared to the massively exciting concept of machine learning. In hindsight, I think it's one of the most useful tools for making sense of things that don't otherwise make sense. The more complicated a dataset or a given question is, the harder it is to see what is going on. The iris dataset is a walk in the park. With a solid grasp on visualizing and organizing data, we can start to navigate what can often be a tangled conceptual, mathematical, or practical mess. These skills are truly invaluable, and are undeniably the foundation for any good data science. Machine learning itself can get a bit harder. Start with regression and work your way up little by little, playing around with the iris dataset as you go. Once the basics are down, all that's left for new problems is trial and error - you can test out different models to see which works for any dataset. 
 
 
@@ -330,3 +390,5 @@ https://www.datacamp.com/community/tutorials/r-web-scraping-rvest
 https://ggplot2.tidyverse.org
 https://www.r-exercises.com/2017/11/17/iris-neural-network-solutions/
 https://youtu.be/ZzWaow1Rvho 
+https://cran.r-project.org/web/packages/qwraps2/vignettes/summary-statistics.html
+https://cran.r-project.org/web/packages/dlookr/vignettes/transformation.html
