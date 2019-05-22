@@ -1,24 +1,11 @@
-Understanding Machine Learning with the Iris Dataset
+#Understanding Machine Learning with the Iris Dataset
 
-Table of Contents???
-# Introduction
-# Setup
-# Data Curation, Parsing, and Management
-# Exploratory Data Analysis
-TODO
-# Hypothesis Testing & Machine Learning for Analysis
-TODO
-# Insights
-TODO???
-
-Here's the iris csv
-
-From now on I'll just post Rmarkdown contents directly. Ctrl+c Ctrl+v everything and you have yourself an rmarkdown document.
+Iris dataset: https://drive.google.com/file/d/1hSkoIbRG7BFe78jdqnQRiagU3C-sDlUJ/view?usp=sharing
 
 ---
-title: "Understanding Machine Learning with the Iris Dataset"
 output: html_document
 ---
+
 ### Maya Fuchs, Steve Moore & Shiyu Hao
 #### CMSC320 Spring 2019
 
@@ -43,7 +30,16 @@ library(ggplot2)
 library(nnet)
 library(dplyr)
 library(reshape2)
+library(magrittr)
+library(class)
+library(broom)
 ```
+The familiar dplyr and readr libraries offer tools for working with dataframes and rectangular data. Ggplot2 is essential for what we do with visualizing datasets, and reshape2 for certain data transformations.
+
+We will be using rvest and magrittr for a short demonstration of scraping data from websites.
+
+The neuralnet and nnet will cover what we need for neural networks in the machine learning part.
+
 # Data Curation, Parsing, and Management
 
 The Iris dataset is already built into R, so to load it we simply call:
@@ -73,10 +69,46 @@ head(iris_csv)
 
 That's my favorite method, since it tends to be fairly simple. You can specify column types in the call to read_csv or after the fact, rename columns, etc. It's also very easy to clean the data in excel or google sheets before loading it, then a single call like the one above gives you a dataset that's ready to go.
 
-
+If you are looking to scrape your own data from a website, there are a few extra steps.
+
+First, locate a website with desired data. We use https://www.weather.com with its 10 day weather forecast for College Park, MD. If you are unfamiliar with the basics of html, feel free to refer to this page: https://www.w3schools.com/html/html_basic.asp
+
+``` {r weather}
+# Loads url
+url <- "https://weather.com/weather/tenday/l/20740:4:US"
+# Extract html data. In this case the data is placed inside a table node, which can be identified with the "table" id. Examine the html for the data structure's id if you don't already know it.
+
+# The extracted node is placed inside a list. So we use .[[1]] to access it as the only element inside.
+
+# The fill parameter is set to TRUE because the original html table assigns the first column to NA's. This will require some post-processing
+weather_table <- url %>% 
+          read_html() %>% 
+          html_nodes("table") %>% 
+          .[[1]] %>% 
+          html_table(fill = TRUE)
+
+# Clean up data
+weather_table$Day <- weather_table$description
+
+weather_table <- weather_table %>% set_colnames(c("Day", 
+                                    "Description", 
+                                    "High/Low", "Precip", 
+                                    "Wind", "Humidity"))
+``` 
+
+This will result in a data frame that can be examined or transformed in the same way loading a csv file would create!
+
+For a more detailed walkthrough, this tutorial from DataCamp is a great resource:  
+https://www.datacamp.com/community/tutorials/r-web-scraping-rvest
+
+
 # Exploratory Data Analysis
-TODO [talk about eda stuff here]
-TODO [Other visualization examples]
+
+Exploratory data analysis, as the name suggests, is the initial analysis of a dataset through exploration. It examines variable properties and relationships, which provide insights into the statistical models or machine learning techniques we should choose later on. If there is still any need for data transformation, exploratory data analysis is also a last check. 
+
+We will cover two main perspectives for exploratory data analysis here - visualization, and summary statistics.
+
+Visualization is a great starting point for conducting EDA. It offers direct and intuitive knowledge about the dataset. R also supports a wide range of graphics options, and we use the ggplot2 library mentioned above. For more information regarding ggplot2, you may reference its official documentation: https://ggplot2.tidyverse.org
 
 The best way to approach visualization is to look at the dataset, see which variables are interesting, then google examples of plots for inspiration. To apply them to a new dataset, start simple and add details one at a time, adjusting as you go along. Here we'll go over a few creative approaches to visualizing the classic iris dataset.
 
@@ -93,7 +125,7 @@ exploratory_iris %>%
 
 This graph lets us see the distributions of widths/heights across each of the 3 species. We can see a bit of distinction in terms of petal length and width - the setosas have much smaller petals; the other two are more similar, but the virginicas are somewhat bigger than the versicolors. 
 
-TODO [more analysis of plots]
+A graph like this easily allows us to see some immediate features or trends within our data. It gives an overview of what exact aspects of each single variable are worth further analysis. 
 
 What about relationships between variables? This page: http://www.sthda.com/english/wiki/scatter-plot-matrices-r-base-graphs has a series of plots ranging from simple:
 
@@ -151,7 +183,49 @@ This dataset is a perfect classification problem, given the three species and si
 Since one pair of variables has a clear linear relationship, we could try to fit a linear model to the data.
 We could probably separate setosa from the other two species easily enough, but we might not be able to separate versicolor and virginica as easily.
 
-We could use logistic regression to predict the probabilities of a given flower belonging to each class. 
+Sometimes when looking at your data, you can see a pattern between attributes but can't quite identify it over the noise of background information. We can use hypothesis testing combined with linear regression to help us determine if the patterns we see are truly significant. First we need to determine our threshold of significance. That is, assuming this is a random sample of data, what is the probability of observing the data in this sample? What probability means there is a relationship between attributes and not just random coincidences occurring? Generally, if we observe a probability, that we observe this data, of less than or equal to 5%, we can say that there are no coincidences and the relationships in our data are significant. For our purposes, we will use this general threshold
+
+Suppose I wanted to see if there was a relationship between petal length and sepal length. We can look at a scatter plot of the two attributes.
+
+```{r linearRegression1}
+
+data(iris)
+
+iris %>%
+  select(Petal.Length, Sepal.Length) %>%
+  ggplot(mapping=aes(x=Petal.Length,y=Sepal.Length)) + geom_point() + 
+   labs(title="Scatter Plot: Sepal Length over Petal Length",
+         x = "Petal Length",
+         y = "Sepal Length")
+```
+
+Above we see a scatter plot of petal length over sepal length. There does indeed to appear to be a relationship between the two attributes. Now we can make a hypothesis about the relationship between petal and sepal length. In statistics, we make what is called a null hypothesis. Here, our null hypothesis would be that there is NO significant relationship between petal and sepal lengths. If our p-value, or probability of observing our data, is less than or equal to 5% we can safely REJECT this hypothesis and say that there IS a relationship between sepal length and width. Since our relationship looks linear, we can fit a linear regression model to our data to check our p-value.
+
+
+```{r linearRegression2}
+data(iris)
+length_fit <- lm(Petal.Length~Sepal.Length, data=iris) %>% tidy()
+
+length_fit
+```
+Now we can see that our p-value is basically zero, so there if a very low chance of observing this relationship between petal and sepal length randomly. Thus, we reject the null hypothesis and can indeed say there exists a relationship between petal and sepal length. 
+
+Below I have included a linear regression line on top of the scatter plot from earlier so the relationship is more clear. 
+
+```{r linearRegression3}
+data(iris)
+iris %>%
+  select(Petal.Length, Sepal.Length) %>%
+  ggplot(mapping=aes(x=Petal.Length,y=Sepal.Length)) + geom_point() + 
+  geom_smooth(method = lm) +
+   labs(title="Scatter Plot: Petal Length over Sepal Length (Regression Line Fitted)",
+         x = "Petal Length",
+         y = "Sepal Length")
+```
+
+# Machine Learning for Analysis
+
+We could use logistic regression to predict the probabilities of a given plant belonging to each class. 
 
 Logistic regression to predict species:
 
@@ -159,7 +233,6 @@ Suppose we are given an unknown species of plant. We know that its species could
 
 
 ``` {r logisticRegressionModel}
-
 iris_no_setosa <- filter(iris, Species %in% c("virginica", "versicolor"))
 glm_model <- glm(Species ~ Sepal.Width + Sepal.Length + Petal.Width + Petal.Length,
                data = iris_no_setosa,
@@ -170,7 +243,7 @@ model_data <- data.frame(predictor=glm_model$linear.predictors, prob=glm_model$f
 ggplot(model_data, aes(x=predictor, y=prob, color=Species)) + geom_point()
 ```
 
-Above we have fitted a linear regression model to determine the probability of an unknown plant being a versicolor or a virginica. To make a prediction of what a unknown plant is, we will plug in the predictor attributes into our logistic model and then get the probability or our unknown being a versicolor.
+Above we have fitted a logistic regression model to determine the probability of an unknown plant being a versicolor or a virginica. To make a prediction of what a unknown plant is, we will plug in the predictor attributes into our logistic model and then get the probability or our unknown being a versicolor.
 
 
 ``` {r logisticRegressionPrediction}
@@ -187,21 +260,21 @@ Petal width = 1.9
 
 and our model states this unknown plant has a 0.8053412% chance of being of the versicolor species.
 
+There are many other ways to estimate attributes like this. 
+We could use K-nearest neighbors to estimate and group the flowers based on similarities. 
+KNN algorithm making estimations and predictions: 
 
-We could use K-nearest neighbors to group the flowers based on similarities. 
-KNN algorithm making estimations and predictions
 A common situation in data analysis is that one has an outcome attribute, and one or more independent covariate or predictor attributes. We can ask ourselves some questions about these attributes. What effects do the covariates have on the outcome? How well can we describe these effects? Can we predict the outcome using the covariates?
 
 We can do some data analysis with geometry to help give us some answers.
 
-Here, We can select species as our outcome attribute, petal length, petal width, and sepal width as our predictor attributes. We suspect there might be a linear relationship between the attributes. Suppose we want to predict what a species will be given certain petal length and width? we can use the K-nearest-neighbor classification to give us an estimate. Given petal length,and  petal and sepal widths, we could estimate what species group the new plant falls into.
+Suppose we want to predict what a species will be given certain petal length, petal and sepal width. Here, We can select species as our outcome attribute, followed by petal length, petal width, and sepal width as our predictor attributes. We can use the K-nearest-neighbor classification to give us an estimate. Given petal length,and  petal and sepal widths, we could estimate what species group the new plant falls into.
 
 The k nearest neighbors is a algorithm that looks at all available normalized data and classifies new data by looking at its k neighbors. This algorithms segregates unlabeled data points into well defined groups.
 
 What value should we select for k? A large k value is good because it will not be affected by data noise as much, but it might overlook the less noticeable patterns in the data.
 
 ``` {r KNN}
- library(class)
  iris_data <- iris %>% select(Petal.Length,Petal.Width, Sepal.Width, Species)
 
  ##the normalization function is created
@@ -233,31 +306,24 @@ Sepal width = 0.64
 
 and our knn algorithm predicted these attributes correspond to the setosa species. Which lines up with the rest of the observations nicely. This would lead us to believe a plant with these attributes would indeed be part of the Setosa species.
 
+We could use a decision tree:
 
-We could use a decision tree, where we'd determine certain thresholds for characteristics. For example, from the violin plot we can see that setosa flowers don't have petal widths > 1. We could let the machine try to find enough clear distinctions to accurately separate the data. 
+We could use a decision tree to determine certain thresholds for characteristics. For example, from the violin plot we can see that setosa flowers don't have petal widths > 1. We could let the machine try to find enough clear distinctions to accurately separate the data. 
 
 Decision trees tend to have a problem with overfitting, so their results are often difficult to generalize to new data. They can also require very large datasets to achieve some degree of reliability. These may or may not be issues with this dataset, but they certainly could hinder results for more complicated ones. A popular solution is the random forest model, which creates multiple decision trees, each of which select random features to focus on. Then, the results from the trees are basically averaged to make a final decision.
 
-TODO [more details and/or other models]
 
 
-
-
-# Machine Learning for Analysis- 
-
-
-
-
-
-[logistic regression (classification)] - DONE
-[Decision tree] - DONE
-[Random Forest]
 # Insights
-TODO
-
+The iris dataset is used very frequently in data science, but the motivation for using it in specific ways can be confusing at times. Our goal with this project was to have a variety of approaches in one place, to make it easier to compare and understand the purpose for choosing one method over another for a given problem. It's easier to learn difficult concepts is by starting with the basics, so hopefully we've managed to keep things fairly simple. 
+To me, visualization seemed pretty trivial compared to the massively exciting concept of machine learning. In hindsight, I think it's one of the most useful tools for making sense of things that don't otherwise make sense. The more complicated a dataset or a given question is, the harder it is to see what is going on. The iris dataset is a walk in the park. With a solid grasp on visualizing and organizing data, we can start to navigate what can often be a tangled conceptual, mathematical, or practical mess. These skills are truly invaluable, and are undeniably the foundation for any good data science. Machine learning itself can get a bit harder. Start with regression and work your way up little by little, playing around with the iris dataset as you go. Once the basics are down, all that's left for new problems is trial and error - you can test out different models to see which works for any dataset. 
 
 # Resources
 https://www.r-exercises.com/2017/11/17/iris-neural-network-exercises/ 
 http://www.hcbravo.org/IntroDataSci/bookdown-notes/index.html 
 http://www.sthda.com/english/wiki/scatter-plot-matrices-r-base-graphs
-
+https://www.w3schools.com/html/html_basic.asp
+https://www.datacamp.com/community/tutorials/r-web-scraping-rvest
+https://ggplot2.tidyverse.org
+https://www.r-exercises.com/2017/11/17/iris-neural-network-solutions/
+https://youtu.be/ZzWaow1Rvho 
