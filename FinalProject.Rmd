@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Setup
 
-Here are the libraries we'll need. Be sure to install any that you don't already have!
+Here are some of the libraries we'll need. Be sure to install any that you don't already have!
 
 ``` {r libraries, message=FALSE, warning=FALSE}
 library(neuralnet)
@@ -39,6 +39,8 @@ The familiar dplyr and readr libraries offer tools for working with dataframes a
 We will be using rvest and magrittr for a short demonstration of scraping data from websites.
 
 The neuralnet and nnet will cover what we need for neural networks in the machine learning part.
+
+We will be importing more libraries specific to tasks as needed when we go through each section of the tutorial. Be sure to pay attention to the code segments!
 
 # Data Curation, Parsing, and Management
 
@@ -94,6 +96,7 @@ weather_table <- weather_table %>% set_colnames(c("Day",
                                     "Description", 
                                     "High/Low", "Precip", 
                                     "Wind", "Humidity"))
+weather_table
 ``` 
 
 This will result in a data frame that can be examined or transformed in the same way loading a csv file would create!
@@ -198,7 +201,7 @@ iris_stat <- iris_csv %>%
 summary(filter(iris_csv, species=="versicolor")$sepal_length)
 ```
 
-Since our goal today is to carry you through the entire procedure of machine learning based on the iris dataset, we won't dwell into too much details regarding R and statistics. CRAN has a more comprehensive overview revolving around the qwraps2 graphics library for extracting such quantities, as well as building summary tables that will be handy for a statistics-focused analysis here: https://cran.r-project.org/web/packages/qwraps2/vignettes/summary-statistics.html.
+Since our goal today is to carry you through the entire process of machine learning based on the iris dataset, we won't dwell into too much details regarding R and statistics. CRAN has a more comprehensive overview revolving around the qwraps2 graphics library for extracting such values, as well as building summary tables that will be handy for a statistics-focused analysis here: https://cran.r-project.org/web/packages/qwraps2/vignettes/summary-statistics.html.
 
 We can also combine the values that we have obtained with visualization techniques.
 
@@ -213,7 +216,7 @@ iris_csv %>%
     geom_vline(aes(xintercept=quantile(sepal_length, 0.75)), size=0.8, color="blue", linetype=2)
 ```
 
-Each method will prove to be more or less useful according to the dataset that is used. In our case, the necessity for computing and plotting the specific statistic values is low since there is no outstanding need for data transformation or careful evaluation between certain models given the relationship between variables, as we will see later on. Nevertheless, it is helpful to keep in mind that there are many options available when exploring a dataset. The majority of real-world data can be messy, with many complications that can be best dealt with by diverse means.
+Each method will prove to be more or less useful according to the dataset that is used. In our case, the necessity for computing and plotting the specific statistic values is low since there is no outstanding need for data transformation, as we will see later on. Nevertheless, it is helpful to keep in mind that there are many options available when exploring a dataset. The majority of real-world data can be messy, with many complications that can be best dealt with by diverse means.
 
 In many cases, we may wish to standardize our values into a unit-less format that can eliminate certain noises. This would also allow direct  cross-comparison between variables that are measured in different units. 
 
@@ -226,7 +229,7 @@ standard_sepal_length <- iris_csv %>%
 standard_sepal_length$standard_var
 ```
 
-We might also have to transform the way that our variable exists in the data frame, from numeric to categorical, or the other way around. Since we will be predicting the species of a certain iris given measurement parameters, this also would not be necessary in our case. The motivation for doing so is because most prediction methods, including linear regression which will be used shortly, only take numerical inputs. If we want to use species or other categorical descriptions to predict an output through linear regression, we would have to do something like this...
+We might also have to transform the way that our variable exists in the data frame, from numeric to categorical, or the other way around. The motivation for doing so is because most prediction methods, including linear regression which will be used shortly, only take numerical inputs. If we want to use species or other categorical descriptions to predict an output through linear regression, we would have to do something like this...
 
 ``` {r type_transform}
 # This method is known as one-hot encoding. If an entity is a certain species the column corresponding to such species will be 1, otherwise it will be 0.
@@ -236,7 +239,7 @@ type_trans <- iris_csv %>%
          species_setosa=ifelse(species=="setosa", 1, 0))
 ```
 
-For more information regarding transformations, refer to CRAN's documentation:
+There will be occasions where we will want to discretize numeric variables into categorical ones. It is also common that the dataset we work with has numerous missing values. We will be motivated to find out more about the reason for the values to be missing, and then decide on how to deal with them - simply discarding them, imputing replacement values, or else. These are topics worth investigating and it is highly recommended that you refer to CRAN's documentation to learn more about them:
 https://cran.r-project.org/web/packages/dlookr/vignettes/transformation.html
 
 This dataset is a perfect classification problem, given the three species and simple set of characteristics to distinguish them. The question is, which model do we use to predict the species of a given flower? 
@@ -372,6 +375,26 @@ We could use a decision tree:
 We could use a decision tree to determine certain thresholds for characteristics. For example, from the violin plot we can see that setosa flowers don't have petal widths > 1. We could let the machine try to find enough clear distinctions to accurately separate the data. 
 
 Decision trees tend to have a problem with overfitting, so their results are often difficult to generalize to new data. They can also require very large datasets to achieve some degree of reliability. These may or may not be issues with this dataset, but they certainly could hinder results for more complicated ones. A popular solution is the random forest model, which creates multiple decision trees, each of which select random features to focus on. Then, the results from the trees are basically averaged to make a final decision.
+
+``` {r random forest}
+set.seed(1234)
+library(randomForest)
+
+# Creating a data frame with only virginicas and versicolors for simplification
+iris_forest <- 
+  filter(iris_csv, species %in% c("virginica", "versicolor"))
+
+# Transforming the species column into factor for random forest to perform classification based on the response variable
+iris_forest$species <- as.factor(iris_forest$species)
+
+# Inputting the parameters into the random forest
+rf <- randomForest(species~sepal_width+petal_length+petal_width, data=iris_forest, norm.votes = TRUE, proximity = TRUE)
+
+# Using random forest's predict method to generate a result for the known entities in our dataset
+predict(rf, iris_csv[51,], type = "prob")
+```
+
+We can see that the 51st row, which is also the first versicolor in the dataset is predicted by the model to be about 99% belonging to the versicolor class. By creating new unknown iris data, we could apply the random forest that we have created to do classifications in the same way as the other models.
 
 # Insights
 
